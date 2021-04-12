@@ -3,7 +3,6 @@ from collections import defaultdict
 """
 Notes:
 - For three-digit value of 123, position 0 is 3 and position 2 is 1
-
 To-Do:
 - Implement avoiding cycling (same value, same children nodes)
 - IDS, A*, Greedy, Hill Climbing
@@ -37,29 +36,10 @@ def getAdditionValue(index):
     dict = {0:-100, 1:100, 2:-10, 3:10, 4:-1, 5:1}
     return dict[index]
 
-def expandBFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
-
-    global nodesExpanded
-    if nodesExpanded > 1000 or endState in traversedList:
-        return
-
-    # base class for recursion
-    traversedList.append(node.value)
-    if(not visitedDict.__contains__(node.value)):
-        visitedDict[node.value] = [node.previousPosition]
-    else:
-        visitedDict[node.value].append(node.previousPosition)
-
-    nodesExpanded += 1
-    if node.value == endState:
-        while(node.prevNode != None):
-            pathList.insert(0,node.prevNode.value)
-            node = node.prevNode
-        pathList.append(endState)
-        return
-
-    # Loop over the 6 possibilities and transformations
+def getChildren(node):
+    nodeList = []
     for i in range(6):
+
         position = 2 - int(i / 2)
         constraints = [position == node.previousPosition,
                        getSpecificDigit(node.value, position) == 0 and i % 2 == 0,
@@ -67,48 +47,49 @@ def expandBFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathL
 
         # if any constraints are met, skip this loop
         if any(constraints):
-            if (i == 5):
-                if(len(traversedQueue) != 0):
-                    temp = traversedQueue.pop(0)
-                    expandBFS(temp, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
             continue
+        nodeList.append(Node(node.value + getAdditionValue(i), position, node))
 
-        # Use the getAdditionValue to add value to the current node and set it as a new node
-        temp = Node(node.value + getAdditionValue(i), position,node)
+    return nodeList
 
-        # Check if the computed value is forbidden
-        if temp.value not in forbiddenSet:
-            # Now check if it is in a cycle...
-            # It is in a cycle if:
-            # 1. 3 digits are same and
-            # 2. Their children is same
-            # which can be checked by the value of three digits and the value of
-            # the previously disallowed position, called previousPosition
-            if temp.value in visitedDict:
-                if(temp.value == 234):
-                    print("Check: " + str(temp.previousPosition in visitedDict[temp.value]))
-                if temp.previousPosition in visitedDict[temp.value]:
-                    if (i == 5):
-                        if (len(traversedQueue) != 0):
-                            temp = traversedQueue.pop(0)
-                            expandBFS(temp, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
-                    continue
-                else:
-                    visitedDict[temp.value].append(temp.previousPosition)
+def expandBFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
+    global nodesExpanded
+    if nodesExpanded > 1000 or endState in traversedList:
+        return
 
+    # append to traversed list
+    traversedList.append(node.value)
+    traversedQueue.append(node)
 
-            # If its not in a cycle, then add it to the queue
-            traversedQueue.append(temp)
-            if (i == 5):
-                if (len(traversedQueue) != 0):
-                    temp = traversedQueue.pop(0)
-                    expandBFS(temp, endState, forbiddenSet, traversedQueue, traversedList, pathList,visitedDict)
-        else:
-            if (i == 5):
-                if (len(traversedQueue) != 0):
-                    temp = traversedQueue.pop(0)
-                    expandBFS(temp, endState, forbiddenSet, traversedQueue, traversedList, pathList,visitedDict)
+    # append to visited list
+    if (not visitedDict.__contains__(node.value)):
+        visitedDict[node.value] = [node.previousPosition]
+    else:
+        visitedDict[node.value].append(node.previousPosition)
+
+    while traversedQueue:
+        temp = traversedQueue.pop(0)
+
+        if(temp.value in forbiddenSet):
             continue
+        traversedList.append(temp.value)
+
+        # get the neighbour of this node
+        nodeList = getChildren(temp)
+
+        for n in nodeList:
+            if (not visitedDict.__contains__(n.value)):
+                visitedDict[n.value] = [n.previousPosition]
+            elif (n.previousPosition not in visitedDict[n.value]):
+                visitedDict[n.value].append(n.previousPosition)
+            else:
+                continue
+            traversedQueue.append(n)
+        if (temp.value == endState):
+            while(temp.prevNode != None):
+                pathList.insert(0,temp.value)
+                temp = temp.prevNode
+            return
 
 def bfs(startState, endState, forbiddenSet):
 
@@ -119,7 +100,8 @@ def bfs(startState, endState, forbiddenSet):
 
     # 3. Call recursive expand on first node
     expandBFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
-    return traversedList, pathList
+    pathList.insert(0, node.value)
+    return traversedList[1:], pathList
 
 def expandDFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
     # Need to complete this too....
