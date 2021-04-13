@@ -3,18 +3,18 @@ from collections import defaultdict
 """
 Notes:
 - For three-digit value of 123, position 0 is 3 and position 2 is 1
+
 To-Do:
-- Implement avoiding cycling (same value, same children nodes)
-- IDS, A*, Greedy, Hill Climbing
+- Hill climbing
+- make sorting algo more efficient - perhaps quicksort
 - Add some sort of enum/struct for arguments in expand functions
-- Implement case for when loop is more than 1000!
-- Nodes MAY need ONE LAYER children array to check for cycles....
-- Append 0s in front of digits less than 3 .... (easy)
 """
 
 # global value
 global nodesExpanded
 global exitRecursion
+global level
+
 class Node:
     def __init__(self, value, previousPosition, prevNode):
         self.value = value
@@ -22,6 +22,7 @@ class Node:
         self.prevNode = prevNode
     def setLevel(self, level):
         self.level = level
+
 
 def getSpecificDigit(value, position):
     return value // 10 ** position % 10
@@ -266,43 +267,86 @@ def getManhattanHeurChildren(node, endState):
                     break
     return sortedNode
 
+def getHeurAStar(endState, fringe, forbiddenSet, traversedList):
+    global nodesExpanded
+    global level
+    node = fringe.pop(0)
+    if(node.value in forbiddenSet):
+        return fringe
+    else:
+        traversedList.append(node.value)
+        nodesExpanded += 1
+    sortedNode = []
+    level = node.level + 1
+    for i in range(6):
+
+        position = 2 - int(i / 2)
+        constraints = [position == node.previousPosition,
+                       getSpecificDigit(node.value, position) == 0 and i % 2 == 0,
+                       getSpecificDigit(node.value, position) == 9 and i % 2 != 0]
+
+        # if any constraints are met, skip this loop
+        if any(constraints):
+            continue
+        newNode = Node(node.value + getAdditionValue(i), position, node)
+        newNode.setLevel(level)
+        fringe.append(newNode)
+
+    # Sort by manhattan heuristic value
+
+    if(len(fringe) > 0):
+        sortedNode.append(fringe[0])
+        for i in range(len(fringe)):
+            val = len(sortedNode)
+            for j in range(val):
+                if (calculateManhattanHeuristic(endState, fringe[i].value) + fringe[i].level) <= \
+                        (calculateManhattanHeuristic(endState, sortedNode[j].value) + sortedNode[j].level):
+                    sortedNode.insert(j,fringe[i])
+                    break
+                elif j == len(sortedNode) - 1:
+                    sortedNode.append(fringe[i])
+                    break
+    fringe = sortedNode
+
+    #fringe.sort(key=lambda x: x.value, reverse=True)
+
+    return fringe
+
 def expandAStar(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
     global nodesExpanded
-    if nodesExpanded > 1000 or endState in traversedList:
-        return
+    global level
 
+    # set level for a star algo
+    level = 0
+    node.setLevel(level)
     # append to traversed list
     traversedList.append(node.value)
     traversedQueue.append(node)
+    fringe = [node]
 
-    # append to visited list
-    if (not visitedDict.__contains__(node.value)):
-        visitedDict[node.value] = [node.previousPosition]
-    else:
-        visitedDict[node.value].append(node.previousPosition)
+    while len(fringe) != 0 and fringe[0] != endState:
 
-    while traversedQueue:
-        temp = traversedQueue.pop()
+        n = fringe[0]
 
-        if(temp.value in forbiddenSet):
+        if (not visitedDict.__contains__(n.value)):
+            visitedDict[n.value] = [n.previousPosition]
+        elif (n.previousPosition not in visitedDict[n.value]):
+            visitedDict[n.value].append(n.previousPosition)
+        else:
+            fringe.pop(0)
             continue
-        traversedList.append(temp.value)
+
+        if(n.value == endState):
+
+            while (n.prevNode != None):
+                pathList.insert(0, n.value)
+                n = n.prevNode
+            return fringe, pathList
 
         # get the neighbour of this node
-        nodeList = getManhattanHeurChildren(temp, endState)
+        fringe = getHeurAStar(endState, fringe, forbiddenSet, traversedList)
 
-        for n in nodeList:
-            if (not visitedDict.__contains__(n.value)):
-                visitedDict[n.value] = [n.previousPosition]
-            elif (n.previousPosition not in visitedDict[n.value]):
-                visitedDict[n.value].append(n.previousPosition)
-            else:
-                continue
-            traversedQueue.append(n)
-        if (temp.value == endState):
-            while(temp.prevNode != None):
-                pathList.insert(0,temp.value)
-                temp = temp.prevNode
+        if nodesExpanded > 20 or endState in traversedList:
             return
 
 def aStar(startState, endState, forbiddenSet):
@@ -314,6 +358,7 @@ def aStar(startState, endState, forbiddenSet):
     # 3. Call recursive expand on first node
     expandAStar(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
     pathList.insert(0, node.value)
+    traversedList.append(endState)
     return traversedList[1:], pathList
 
 def getHeurGreedy(endState, fringe, forbiddenSet, traversedList):
