@@ -316,8 +316,13 @@ def aStar(startState, endState, forbiddenSet):
     pathList.insert(0, node.value)
     return traversedList[1:], pathList
 
-def getHeurGreedy(node, endState):
-    nodeList = []
+def getHeurGreedy(endState, fringe, forbiddenSet, traversedList):
+
+    node = fringe.pop(0)
+    if(node.value in forbiddenSet):
+        return fringe
+    else:
+        traversedList.append(node.value)
     sortedNode = []
     for i in range(6):
 
@@ -329,22 +334,24 @@ def getHeurGreedy(node, endState):
         # if any constraints are met, skip this loop
         if any(constraints):
             continue
-        nodeList.append(Node(node.value + getAdditionValue(i), position, node))
+        fringe.append(Node(node.value + getAdditionValue(i), position, node))
 
     # Sort by manhattan heuristic value
-    if(len(nodeList) > 0):
-        sortedNode.append(nodeList[0])
-        for i in range(len(nodeList)):
+    if(len(fringe) > 0):
+        sortedNode.append(fringe[0])
+        for i in range(len(fringe)):
             val = len(sortedNode)
             for j in range(val):
-                if calculateManhattanHeuristic(endState, nodeList[i].value) > \
+                if calculateManhattanHeuristic(endState, fringe[i].value) <= \
                         calculateManhattanHeuristic(endState, sortedNode[j].value):
-                    sortedNode.insert(j,nodeList[i])
+                    sortedNode.insert(j,fringe[i])
                     break
                 elif j == len(sortedNode) - 1:
-                    sortedNode.append(nodeList[i])
+                    sortedNode.append(fringe[i])
                     break
-    return sortedNode
+    fringe = sortedNode
+
+    return fringe
 
 def expandGreedy(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
     global nodesExpanded
@@ -354,36 +361,29 @@ def expandGreedy(node, endState, forbiddenSet, traversedQueue, traversedList, pa
     # append to traversed list
     traversedList.append(node.value)
     traversedQueue.append(node)
+    fringe = [node]
+    while len(fringe) != 0 and fringe[0] != endState:
 
-    # append to visited list
-    if (not visitedDict.__contains__(node.value)):
-        visitedDict[node.value] = [node.previousPosition]
-    else:
-        visitedDict[node.value].append(node.previousPosition)
+        n = fringe[0]
 
-    while traversedQueue:
-        temp = traversedQueue.pop()
-
-        if(temp.value in forbiddenSet):
+        if (not visitedDict.__contains__(n.value)):
+            visitedDict[n.value] = [n.previousPosition]
+        elif (n.previousPosition not in visitedDict[n.value]):
+            visitedDict[n.value].append(n.previousPosition)
+        else:
+            fringe.pop(0)
             continue
-        traversedList.append(temp.value)
+
+        #traversedList.append(n.value)
+
+        if(n.value == endState):
+            while (n.prevNode != None):
+                pathList.insert(0, n.value)
+                n = n.prevNode
+            return fringe, pathList
 
         # get the neighbour of this node
-        nodeList = getHeurGreedy(temp, endState)
-
-        for n in nodeList:
-            if (not visitedDict.__contains__(n.value)):
-                visitedDict[n.value] = [n.previousPosition]
-            elif (n.previousPosition not in visitedDict[n.value]):
-                visitedDict[n.value].append(n.previousPosition)
-            else:
-                continue
-            traversedQueue.append(n)
-        if (temp.value == endState):
-            while(temp.prevNode != None):
-                pathList.insert(0,temp.value)
-                temp = temp.prevNode
-            return
+        fringe = getHeurGreedy(endState, fringe, forbiddenSet, traversedList)
 
 def greedy(startState, endState, forbiddenSet):
     # 2. Make first node
@@ -394,6 +394,7 @@ def greedy(startState, endState, forbiddenSet):
     # 3. Call recursive expand on first node
     expandGreedy(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
     pathList.insert(0, node.value)
+    traversedList.append(endState)
     return traversedList[1:], pathList
 
 def hillClimbing(startState, endState, forbiddenSet):
