@@ -5,9 +5,9 @@ Notes:
 - For three-digit value of 123, position 0 is 3 and position 2 is 1
 
 To-Do:
-- Hill climbing
 - make sorting algo more efficient - perhaps quicksort
 - Add some sort of enum/struct for arguments in expand functions
+- refactor
 """
 
 # global value
@@ -22,6 +22,11 @@ class Node:
         self.prevNode = prevNode
     def setLevel(self, level):
         self.level = level
+
+    def calculateNodeHeuristic(self, previousValue):
+        return abs(getSpecificDigit(previousValue, 2) - getSpecificDigit(self.value, 2)) + \
+               abs(getSpecificDigit(previousValue, 1) - getSpecificDigit(self.value, 1)) + \
+               abs(getSpecificDigit(previousValue, 0) - getSpecificDigit(self.value, 0))
 
 
 def getSpecificDigit(value, position):
@@ -442,9 +447,57 @@ def greedy(startState, endState, forbiddenSet):
     traversedList.append(endState)
     return traversedList[1:], pathList
 
+def expandHill(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
+    global nodesExpanded
+
+    if nodesExpanded > 1000 or endState in traversedList:
+        return
+
+    # append to traversed list
+    traversedList.append(node.value)
+    traversedQueue.append(node)
+    fringe = [node]
+    while len(fringe) != 0 and fringe[0] != endState:
+        boolLocalMax = True
+        n = fringe[0]
+
+        if (not visitedDict.__contains__(n.value)):
+            visitedDict[n.value] = [n.previousPosition]
+        elif (n.previousPosition not in visitedDict[n.value]):
+            visitedDict[n.value].append(n.previousPosition)
+        else:
+            fringe.pop(0)
+            continue
+
+        if (n.value == endState):
+            while (n.prevNode != None):
+                pathList.insert(0, n.value)
+                n = n.prevNode
+            return fringe, pathList
+
+        # get the neighbour of this node
+        fringe = getHeurGreedy(endState, fringe, forbiddenSet, traversedList)
+
+        for node in fringe:
+            if node.calculateNodeHeuristic(endState) < n.calculateNodeHeuristic(endState):
+                boolLocalMax = False
+
+        if boolLocalMax == True:
+            nodesExpanded = 1001
+            return
 def hillClimbing(startState, endState, forbiddenSet):
-    #stub
-    return [], []
+    # 2. Make first node
+    global nodesExpanded
+    node = Node(startState, None, None)
+    traversedQueue, traversedList, pathList = [], [], []
+    visitedDict = {}
+
+    # 3. Call recursive expand on first node
+    expandHill(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
+    pathList.insert(0, node.value)
+    if(nodesExpanded < 1000):
+        traversedList.append(endState)
+    return traversedList[1:], pathList
 
 if __name__ == '__main__':
 
