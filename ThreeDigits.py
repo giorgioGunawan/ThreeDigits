@@ -5,8 +5,11 @@ Notes:
 - For three-digit value of 123, position 0 is 3 and position 2 is 1
 To-Do:
 - Implement avoiding cycling (same value, same children nodes)
-- A*, Greedy, Hill Climbing
+- IDS, A*, Greedy, Hill Climbing
 - Add some sort of enum/struct for arguments in expand functions
+- Implement case for when loop is more than 1000!
+- Nodes MAY need ONE LAYER children array to check for cycles....
+- Append 0s in front of digits less than 3 .... (easy)
 """
 
 # global value
@@ -50,6 +53,11 @@ def getChildren(node):
         nodeList.append(Node(node.value + getAdditionValue(i), position, node))
 
     return nodeList
+
+def calculateManhattanHeuristic(previousValue, currentValue):
+    return abs(getSpecificDigit(previousValue, 2) - getSpecificDigit(currentValue, 2)) + \
+    abs(getSpecificDigit(previousValue, 1) - getSpecificDigit(currentValue, 1)) + \
+    abs(getSpecificDigit(previousValue, 0) - getSpecificDigit(currentValue, 0))
 
 def expandBFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
     global nodesExpanded
@@ -228,13 +236,165 @@ def ids(startState, endState, forbiddenSet):
         level += 1
     return fullTraversedList, pathList
 
+def getManhattanHeurChildren(node, endState):
+    nodeList = []
+    sortedNode = []
+    for i in range(6):
+
+        position = 2 - int(i / 2)
+        constraints = [position == node.previousPosition,
+                       getSpecificDigit(node.value, position) == 0 and i % 2 == 0,
+                       getSpecificDigit(node.value, position) == 9 and i % 2 != 0]
+
+        # if any constraints are met, skip this loop
+        if any(constraints):
+            continue
+        nodeList.append(Node(node.value + getAdditionValue(i), position, node))
+
+    # Sort by manhattan heuristic value
+    if(len(nodeList) > 0):
+        sortedNode.append(nodeList[0])
+        for i in range(len(nodeList)):
+            val = len(sortedNode)
+            for j in range(val):
+                if calculateManhattanHeuristic(endState, nodeList[i].value) > \
+                        calculateManhattanHeuristic(endState, sortedNode[j].value):
+                    sortedNode.insert(j,nodeList[i])
+                    break
+                elif j == len(sortedNode) - 1:
+                    sortedNode.append(nodeList[i])
+                    break
+    return sortedNode
+
+def expandAStar(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
+    global nodesExpanded
+    if nodesExpanded > 1000 or endState in traversedList:
+        return
+
+    # append to traversed list
+    traversedList.append(node.value)
+    traversedQueue.append(node)
+
+    # append to visited list
+    if (not visitedDict.__contains__(node.value)):
+        visitedDict[node.value] = [node.previousPosition]
+    else:
+        visitedDict[node.value].append(node.previousPosition)
+
+    while traversedQueue:
+        temp = traversedQueue.pop()
+
+        if(temp.value in forbiddenSet):
+            continue
+        traversedList.append(temp.value)
+
+        # get the neighbour of this node
+        nodeList = getManhattanHeurChildren(temp, endState)
+
+        for n in nodeList:
+            if (not visitedDict.__contains__(n.value)):
+                visitedDict[n.value] = [n.previousPosition]
+            elif (n.previousPosition not in visitedDict[n.value]):
+                visitedDict[n.value].append(n.previousPosition)
+            else:
+                continue
+            traversedQueue.append(n)
+        if (temp.value == endState):
+            while(temp.prevNode != None):
+                pathList.insert(0,temp.value)
+                temp = temp.prevNode
+            return
+
 def aStar(startState, endState, forbiddenSet):
-    #stub
-    return [], []
+    # 2. Make first node
+    node = Node(startState, None, None)
+    traversedQueue, traversedList, pathList = [], [], []
+    visitedDict = {}
+
+    # 3. Call recursive expand on first node
+    expandAStar(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
+    pathList.insert(0, node.value)
+    return traversedList[1:], pathList
+
+def getHeurGreedy(node, endState):
+    nodeList = []
+    sortedNode = []
+    for i in range(6):
+
+        position = 2 - int(i / 2)
+        constraints = [position == node.previousPosition,
+                       getSpecificDigit(node.value, position) == 0 and i % 2 == 0,
+                       getSpecificDigit(node.value, position) == 9 and i % 2 != 0]
+
+        # if any constraints are met, skip this loop
+        if any(constraints):
+            continue
+        nodeList.append(Node(node.value + getAdditionValue(i), position, node))
+
+    # Sort by manhattan heuristic value
+    if(len(nodeList) > 0):
+        sortedNode.append(nodeList[0])
+        for i in range(len(nodeList)):
+            val = len(sortedNode)
+            for j in range(val):
+                if calculateManhattanHeuristic(endState, nodeList[i].value) > \
+                        calculateManhattanHeuristic(endState, sortedNode[j].value):
+                    sortedNode.insert(j,nodeList[i])
+                    break
+                elif j == len(sortedNode) - 1:
+                    sortedNode.append(nodeList[i])
+                    break
+    return sortedNode
+
+def expandGreedy(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
+    global nodesExpanded
+    if nodesExpanded > 1000 or endState in traversedList:
+        return
+
+    # append to traversed list
+    traversedList.append(node.value)
+    traversedQueue.append(node)
+
+    # append to visited list
+    if (not visitedDict.__contains__(node.value)):
+        visitedDict[node.value] = [node.previousPosition]
+    else:
+        visitedDict[node.value].append(node.previousPosition)
+
+    while traversedQueue:
+        temp = traversedQueue.pop()
+
+        if(temp.value in forbiddenSet):
+            continue
+        traversedList.append(temp.value)
+
+        # get the neighbour of this node
+        nodeList = getHeurGreedy(temp, endState)
+
+        for n in nodeList:
+            if (not visitedDict.__contains__(n.value)):
+                visitedDict[n.value] = [n.previousPosition]
+            elif (n.previousPosition not in visitedDict[n.value]):
+                visitedDict[n.value].append(n.previousPosition)
+            else:
+                continue
+            traversedQueue.append(n)
+        if (temp.value == endState):
+            while(temp.prevNode != None):
+                pathList.insert(0,temp.value)
+                temp = temp.prevNode
+            return
 
 def greedy(startState, endState, forbiddenSet):
-    #stub
-    return [], []
+    # 2. Make first node
+    node = Node(startState, None, None)
+    traversedQueue, traversedList, pathList = [], [], []
+    visitedDict = {}
+
+    # 3. Call recursive expand on first node
+    expandGreedy(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
+    pathList.insert(0, node.value)
+    return traversedList[1:], pathList
 
 def hillClimbing(startState, endState, forbiddenSet):
     #stub
