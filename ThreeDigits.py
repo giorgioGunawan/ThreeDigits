@@ -163,14 +163,10 @@ def dfs(startState, endState, forbiddenSet):
     expandDFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
     return traversedList, pathList
 
-def aStar(startState, endState, forbiddenSet):
-    #stub
-    return [], []
-
 def expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict, level):
     global nodesExpanded
     global exitRecursion
-    if nodesExpanded > 1000 or endState in traversedList or node.level >= level or exitRecursion is True:
+    if nodesExpanded > 1000 or endState in traversedList or exitRecursion is True:
         return
 
     # Base class for recursion
@@ -196,6 +192,8 @@ def expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathL
 
     # Loop over the 6 possibilities and transformations
     for i in range(6):
+        if node.level >= level:
+            continue
         position = 2 - int(i / 2)
         constraints = [position == node.previousPosition,
                        getSpecificDigit(node.value, position) == 0 and i % 2 == 0,
@@ -206,11 +204,11 @@ def expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathL
             continue
 
         # Use the getAdditionValue to add value to the current node and set it as a new node
-        temp = Node(node.value + getAdditionValue(i), position, node)
-        temp.setLevel(node.level+1)
+        if(node.value + getAdditionValue(i) not in forbiddenSet):
+            temp = Node(node.value + getAdditionValue(i), position, node)
+            temp.setLevel(node.level+1)
 
-        # Check if the number is forbidden
-        if temp.value not in forbiddenSet:
+            # Check if the number is forbidden
             if temp.value in visitedDict:
                 if temp.previousPosition in visitedDict[temp.value]:
                     continue
@@ -221,18 +219,21 @@ def expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathL
 def ids(startState, endState, forbiddenSet):
     # 1. Make first node
     global exitRecursion
-    node = Node(startState, None, None)
-    node.setLevel(0)
-    traversedQueue, fullTraversedList, pathList = [], [], []
+    fullTraversedList = []
     level = 0
     while(nodesExpanded < 1000 and fullTraversedList[-1:] != endState and exitRecursion is False):
-        traversedList = []
-        visitedDict = {}
+        node = Node(startState, None, None)
+        node.setLevel(0)
+        traversedQueue, pathList, traversedList, visitedDict = [], [], [], {}
         expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict, level)
         for i in range(len(traversedList)):
             fullTraversedList.append(traversedList[i])
         level += 1
     return fullTraversedList, pathList
+
+def aStar(startState, endState, forbiddenSet):
+    #stub
+    return [], []
 
 def greedy(startState, endState, forbiddenSet):
     #stub
