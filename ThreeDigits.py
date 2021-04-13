@@ -5,11 +5,8 @@ Notes:
 - For three-digit value of 123, position 0 is 3 and position 2 is 1
 To-Do:
 - Implement avoiding cycling (same value, same children nodes)
-- IDS, A*, Greedy, Hill Climbing
+- A*, Greedy, Hill Climbing
 - Add some sort of enum/struct for arguments in expand functions
-- Implement case for when loop is more than 1000!
-- Nodes MAY need ONE LAYER children array to check for cycles....
-- Append 0s in front of digits less than 3 .... (easy)
 """
 
 # global value
