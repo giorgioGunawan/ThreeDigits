@@ -14,12 +14,14 @@ To-Do:
 
 # global value
 global nodesExpanded
-
+global exitRecursion
 class Node:
     def __init__(self, value, previousPosition, prevNode):
         self.value = value
         self.previousPosition = previousPosition
         self.prevNode = prevNode
+    def setLevel(self, level):
+        self.level = level
 
 def getSpecificDigit(value, position):
     return value // 10 ** position % 10
@@ -143,20 +145,12 @@ def expandDFS(node, endState, forbiddenSet, traversedQueue, traversedList, pathL
 
         # Check if the number is forbidden
         if temp.value not in forbiddenSet:
-            # Now check if it is in a cycle...
-            # It is in a cycle if:
-            # 1. 3 digits are same and
-            # 2. Their children is same
-            # which can be checked by the value of three digits and the value of
-            # the previously disallowed position, called previousPosition
             if temp.value in visitedDict:
                 if temp.previousPosition in visitedDict[temp.value]:
                     continue
                 else:
                     visitedDict[temp.value].append(temp.previousPosition)
             expandDFS(temp, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict)
-        else:
-            continue
 
 def dfs(startState, endState, forbiddenSet):
 
@@ -173,12 +167,72 @@ def aStar(startState, endState, forbiddenSet):
     #stub
     return [], []
 
-def expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict):
-    return [],[],[]
+def expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict, level):
+    global nodesExpanded
+    global exitRecursion
+    if nodesExpanded > 1000 or endState in traversedList or node.level >= level or exitRecursion is True:
+        return
+
+    # Base class for recursion
+    traversedList.append(node.value)
+    if (not visitedDict.__contains__(node.value)):
+        visitedDict[node.value] = [node.previousPosition]
+    else:
+        visitedDict[node.value].append(node.previousPosition)
+    nodesExpanded += 1
+
+    # In the case that the root value is the end goal state value
+    if node.value == endState:
+
+        # Get the path values
+        while(node.prevNode != None):
+            pathList.insert(0,node.prevNode.value)
+            node = node.prevNode
+        pathList.append(endState)
+
+        #nodesExpanded = 1001 # to make it quit
+        exitRecursion = True
+        return
+
+    # Loop over the 6 possibilities and transformations
+    for i in range(6):
+        position = 2 - int(i / 2)
+        constraints = [position == node.previousPosition,
+                       getSpecificDigit(node.value, position) == 0 and i % 2 == 0,
+                       getSpecificDigit(node.value, position) == 9 and i % 2 != 0]
+
+        # if any constraints are met, skip this loop
+        if any(constraints):
+            continue
+
+        # Use the getAdditionValue to add value to the current node and set it as a new node
+        temp = Node(node.value + getAdditionValue(i), position, node)
+        temp.setLevel(node.level+1)
+
+        # Check if the number is forbidden
+        if temp.value not in forbiddenSet:
+            if temp.value in visitedDict:
+                if temp.previousPosition in visitedDict[temp.value]:
+                    continue
+                else:
+                    visitedDict[temp.value].append(temp.previousPosition)
+            expandIDS(temp, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict, level)
 
 def ids(startState, endState, forbiddenSet):
-    #stub
-    return [], []
+    # 1. Make first node
+    global exitRecursion
+    node = Node(startState, None, None)
+    node.setLevel(0)
+    traversedQueue, fullTraversedList, pathList = [], [], []
+    level = 0
+    while(nodesExpanded < 1000 and fullTraversedList[-1:] != endState and exitRecursion is False):
+        traversedList = []
+        visitedDict = {}
+        expandIDS(node, endState, forbiddenSet, traversedQueue, traversedList, pathList, visitedDict, level)
+        for i in range(len(traversedList)):
+            fullTraversedList.append(traversedList[i])
+        level += 1
+    return fullTraversedList, pathList
 
 def greedy(startState, endState, forbiddenSet):
     #stub
@@ -191,7 +245,9 @@ def hillClimbing(startState, endState, forbiddenSet):
 if __name__ == '__main__':
 
     global nodesExpanded
+    global exitRecursion
     nodesExpanded = 1
+    exitRecursion = False
     sys.setrecursionlimit(1500)
     filename, searchStrategy = getArgs()
 
